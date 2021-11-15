@@ -1,6 +1,6 @@
 from collections import deque
 from functools import reduce
-from typing import Set, Dict, Union
+from typing import Set, Dict, Union, List, Tuple
 
 
 class State:
@@ -27,26 +27,6 @@ class State:
 
 
 class DFA:
-    @classmethod
-    def from_str(cls, dfa: str):
-        lines = dfa.split('\n')
-
-        initial_state = State(int(lines[0]))
-        final_states = set([State(int(x)) for x in lines[-1].split(' ')])
-
-        delta: Dict[State, Dict[str, State]] = {}
-        alphabet = set()
-        for [_from, x, _to] in [line.split(' ') for line in lines[1:-1]]:
-            alphabet.add(x)
-
-            _from = State(int(_from))
-            _to = State(int(_to))
-            if _from not in delta:
-                delta[_from] = {}
-            delta[_from][x] = _to
-
-        return cls(alphabet, initial_state, final_states, delta)
-
     def check_word(self, word: str) -> bool:
         current_state = self.__initial_state
 
@@ -57,7 +37,11 @@ class DFA:
 
         return current_state in self.__final_states
 
-    def max_accepted(self, word: str) -> int:
+    def max_accepted(self, word: str) -> Tuple[int, int]:
+        """
+            finds max accepted len from a word (text)
+            @return (x, y) -> x - len of accepted word | y - the index of last read char
+        """
         current_state = self.__initial_state
 
         accepted = 0
@@ -65,11 +49,11 @@ class DFA:
             current_state = self.__next_state(current_state, word[i])
 
             if current_state in self.__final_states:
-                accepted = i
+                accepted = i + 1
             elif current_state in self.__sink_states:
-                return accepted
+                return accepted, i
 
-        return accepted
+        return accepted, len(word)
 
     def __init__(self, alphabet: Set[str], initial_state: State, final_states: Set[State],
                  delta: Dict[State, Dict[str, State]]):
@@ -82,7 +66,7 @@ class DFA:
 
             return _states
 
-        def reversed_delta() -> Dict[State, list[State]]:
+        def reversed_delta() -> Dict[State, List[State]]:
             _reversed = {}
 
             for state in delta:
@@ -108,10 +92,11 @@ class DFA:
             while queue:
                 u = queue.popleft()
 
-                for v in _delta[u]:
-                    if v in _sink:
-                        _sink.remove(v)
-                        queue.append(v)
+                if u in _delta:
+                    for v in _delta[u]:
+                        if v in _sink:
+                            _sink.remove(v)
+                            queue.append(v)
 
             return _sink
 
