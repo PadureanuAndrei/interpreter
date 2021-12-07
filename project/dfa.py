@@ -64,6 +64,8 @@ class DFA:
                 for x in delta[state]:
                     _states.add(delta[state][x])
 
+            _states.add(None)  # None is default sink state
+
             return _states
 
         def reversed_delta() -> Dict[State, List[State]]:
@@ -80,14 +82,9 @@ class DFA:
 
         def sink_states() -> Set[State]:
             _delta = reversed_delta()
-            _states = states()
+            _sink: Set[Union[None, State]] = states().difference(final_states)
 
-            _sink = set(_states)
-            _sink.add(None)  # None is a valid state
-            for state in final_states:
-                _sink.remove(state)
-
-            # Run BFS from all final states
+            # Run BFS from all final states in reversed graph
             queue = deque(final_states)
             while queue:
                 u = queue.popleft()

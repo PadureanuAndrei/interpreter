@@ -1,4 +1,5 @@
-from typing import List, Tuple
+from functools import reduce
+from typing import List, Tuple, Union
 from .dfa import DFA
 
 
@@ -17,23 +18,28 @@ class Lexer:
         self.__dfas = dfas
 
     def parse(self, text: str) -> List[Tuple[str, str]]:
+        # Reducer for iterating trough a list of (token, DFA) and get dfa which accepts max len word
+        def reducer(acc: Tuple[Union[str, None], int, int], x: Tuple[str, DFA]):
+            max_token, max_accepted, max_read = acc
+            _token, dfa = x
+            _accepted, _last = dfa.max_accepted(text[position:])
+
+            if _accepted > max_accepted:
+                return _token, _accepted, _last
+            if _last > max_read:
+                return max_token, max_accepted, _last
+
+            return acc
+
         position = 0
         tokens: List[Tuple[str, str]] = []
 
         while position < len(text):
-            max_token = None
-            max_len = 0
-            max_last = 0
+            # accepted - nr of chars from accepted word | last - index of max checked char
+            token, accepted, last = reduce(reducer, self.__dfas, (None, 0, 0))
 
-            for token, dfa in self.__dfas:
-                accepted, last = dfa.max_accepted(text[position:])
-                if accepted > max_len:
-                    max_token, max_len = token, accepted
-                if last > max_last:
-                    max_last = last
-
-            if not max_token:
-                position += max_last
+            if not token:
+                position += last
                 line_count = -1
                 is_eof = position == len(text)
 
@@ -48,7 +54,7 @@ class Lexer:
 
                 raise Lexer.ParseException(line_count, position)
 
-            tokens.append((max_token, text[position:position + max_len]))
-            position += max_len
+            tokens.append((token, text[position:position + accepted]))
+            position += accepted
 
         return tokens
