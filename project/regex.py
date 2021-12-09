@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import Union
 
 from project.nfa import NFA
 
@@ -9,7 +9,7 @@ class Regex(ABC):
     def from_input(text: str):
         def get_param() -> Union[Regex, str]:
             token = tokens[len(tokens) - 1]
-            if token == 'UNION' or token == 'STAR' or token == 'CONCAT':
+            if token in {'UNION', 'STAR', 'CONCAT', 'PLUS'}:
                 return parse()
 
             return tokens.pop()
@@ -19,16 +19,24 @@ class Regex(ABC):
             if regex_type == 'UNION':
                 a = get_param()
                 b = get_param()
+                print('UNION', a, b)
                 return RegexUnion(a, b)
 
             elif regex_type == 'STAR':
                 a = get_param()
+                print('STAR', a)
                 return RegexStar(a)
 
             elif regex_type == 'CONCAT':
                 a = get_param()
                 b = get_param()
+                print('CONCAT', a, b)
                 return RegexConcat(a, b)
+
+            elif regex_type == 'PLUS':
+                a = get_param()
+                print('PLUS', a)
+                return RegexPlus(a)
 
             else:
                 # TODO: raise exception
@@ -102,6 +110,21 @@ class RegexStar(Regex):
 
     def __str__(self):
         return 'STAR ' + self.__a.__str__()
+
+    __repr__ = __str__
+
+
+class RegexPlus(Regex):
+    def __init__(self, a: Union[Regex, str]):
+        self.__a = a
+
+    def to_nfa(self) -> NFA:
+        nfa = Regex.get_nfa(self.__a)
+
+        return nfa.concat(nfa.star())
+
+    def __str__(self):
+        return 'PLUS ' + self.__a.__str__()
 
     __repr__ = __str__
 

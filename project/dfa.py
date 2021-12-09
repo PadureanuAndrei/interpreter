@@ -1,5 +1,4 @@
 from collections import deque
-from functools import reduce
 from typing import Set, Dict, Union, List, Tuple
 
 
@@ -10,13 +9,13 @@ class DFA:
                 keys = {keys}
 
             self.__keys = keys
-            self.__str_keys = reduce(lambda acc, x: acc + str(x), self.__keys, '')
+            self.__str_keys = ''.join([str(x) for x in keys])
 
         def __eq__(self, other):
             if not isinstance(other, DFA.State):
                 return False
 
-            return self.__str_keys == other.__str_keys
+            return self.__keys == other.__keys
 
         def __hash__(self):
             return hash(self.__str_keys)
@@ -81,7 +80,7 @@ class DFA:
 
         def sink_states() -> Set[DFA.State]:
             _delta = reversed_delta()
-            _sink: Set[Union[None, DFA.State]] = states().difference(final_states)
+            _sink: Set[Union[None, DFA.State]] = states.difference(final_states)
 
             # Run BFS from all final states in reversed graph
             queue = deque(final_states)
@@ -100,6 +99,7 @@ class DFA:
         self.__initial_state = initial_state
         self.__final_states = final_states
         self.__delta = delta
+        self.__states = states = states()
         self.__sink_states = sink_states()
 
     def __next_state(self, current_state: State, x: str):
@@ -109,10 +109,15 @@ class DFA:
             return None
 
     def __str__(self):
-        result = 'from,char,to\n'
+        alphabet = ''.join(sorted([str(x) for x in self.__alphabet]))
+        states_count = str(len(self.__states))
+        initial_state = str(self.__initial_state)
+        final_states = ' '.join([str(x) for x in self.__final_states])
+
+        transitions = ''
         for from_state in self.__delta:
             for char in self.__delta[from_state]:
                 to_state = self.__delta[from_state][char]
-                result += '{} {} {}\n'.format(from_state, to_state, char)
+                transitions += '\n{},\'{}\',{}'.format(str(from_state), char, str(to_state))
 
-        return result
+        return alphabet + '\n' + states_count + '\n' + initial_state + '\n' + final_states + transitions
