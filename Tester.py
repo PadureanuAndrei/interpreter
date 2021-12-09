@@ -1,24 +1,14 @@
 import sys
 import os
+import subprocess
 import argparse
-from functools import reduce
 from math import ceil
+from subprocess import check_output
 from Lexer import runlexer
 
 TESTER_DIR = "tests/"
 
 stage = None
-
-
-def diff(ref, out):
-    with open(ref, "r") as file:
-        ref = reduce(str.__add__, filter(lambda x: x != '\n', file.read()))
-
-    with open(out, "r") as file:
-        out = reduce(str.__add__, filter(lambda x: x != '\n', file.read()))
-
-    return int(ref != out)
-
 
 def run_test(test_set, test):
     lexer = TESTER_DIR + "T{}/".format(stage) + test_set + '/' + test_set + ".lex"
@@ -26,17 +16,15 @@ def run_test(test_set, test):
     foutput = TESTER_DIR + "T{}/".format(stage) + test_set + "/out/" + test_set + '.' + test + ".out"
     freference = TESTER_DIR + "T{}/".format(stage) + test_set + "/ref/" + test_set + '.' + test + ".ref"
 
-    '''
-    print(project)
-    print(finput)
-    print(foutput)
-    print(freference)
-    '''
+    if not os.path.exists(os.path.dirname(foutput)):
+        try:
+            os.makedirs(os.path.dirname(foutput))
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                raise
 
     runlexer(lexer, finput, foutput)
-    # val = subprocess.call(["diff","--ignore-all-space", foutput, freference])
-
-    val = diff(foutput, freference)
+    val = subprocess.call(["diff","--ignore-all-space", foutput, freference])
 
     no_dots = 20
     set_no = int(test_set.split('.')[1])
@@ -85,11 +73,6 @@ def run_all():
         if test_set != test_sets[-1]:
             print()
     print("\nTotal" + '.' * 21 + "[{}p]".format(total))
-
-
-# run_test("T3.11.Lecture-project","lecture01")
-# run_test("T3.1","T3.1.1")
-# run_test_group("T3.1")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FLA project checker')
