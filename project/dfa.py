@@ -3,28 +3,6 @@ from typing import Set, Dict, Union, List, Tuple
 
 
 class DFA:
-    class State:
-        def __init__(self, keys: Union[Set[int], int]):
-            if isinstance(keys, int):
-                keys = {keys}
-
-            self.__keys = keys
-            self.__str_keys = ''.join([str(x) for x in keys])
-
-        def __eq__(self, other):
-            if not isinstance(other, DFA.State):
-                return False
-
-            return self.__keys == other.__keys
-
-        def __hash__(self):
-            return hash(self.__str_keys)
-
-        def __str__(self):
-            return self.__str_keys
-
-        __repr__ = __str__
-
     def check_word(self, word: str) -> bool:
         current_state = self.__initial_state
 
@@ -53,20 +31,16 @@ class DFA:
 
         return accepted, len(word)
 
-    def __init__(self, alphabet: Set[str], initial_state: State, final_states: Set[State],
-                 delta: Dict[State, Dict[str, State]]):
-        def states() -> Set[DFA.State]:
-            _states = set(final_states)
-
-            for state in delta:
-                for x in delta[state]:
-                    _states.add(delta[state][x])
-
-            _states.add(None)  # None is default sink state
+    def __init__(self, alphabet: Set[str], initial_state: int, final_states: Set[int],
+                 delta: Dict[int, Dict[str, int]]):
+        def states() -> Set[int]:
+            _states = {initial_state}
+            _states.update(final_states)
+            _states.update([delta[state][x] for state in delta for x in delta[state]])
 
             return _states
 
-        def reversed_delta() -> Dict[DFA.State, List[DFA.State]]:
+        def reversed_delta() -> Dict[int, List[int]]:
             _reversed = {}
 
             for state in delta:
@@ -78,9 +52,9 @@ class DFA:
 
             return _reversed
 
-        def sink_states() -> Set[DFA.State]:
+        def sink_states() -> Set[int]:
             _delta = reversed_delta()
-            _sink: Set[Union[None, DFA.State]] = states.difference(final_states)
+            _sink: Set[Union[None, int]] = states.difference(final_states)
 
             # Run BFS from all final states in reversed graph
             queue = deque(final_states)
@@ -93,6 +67,8 @@ class DFA:
                             _sink.remove(v)
                             queue.append(v)
 
+            _sink.add(None)  # None is default sink state
+
             return _sink
 
         self.__alphabet = alphabet
@@ -102,7 +78,7 @@ class DFA:
         self.__states = states = states()
         self.__sink_states = sink_states()
 
-    def __next_state(self, current_state: State, x: str):
+    def __next_state(self, current_state: int, x: str):
         try:
             return self.__delta[current_state][x]
         except KeyError:
@@ -114,10 +90,7 @@ class DFA:
         initial_state = str(self.__initial_state)
         final_states = ' '.join([str(x) for x in self.__final_states])
 
-        transitions = ''
-        for from_state in self.__delta:
-            for char in self.__delta[from_state]:
-                to_state = self.__delta[from_state][char]
-                transitions += '\n{},\'{}\',{}'.format(str(from_state), char, str(to_state))
+        transitions = '\n'.join(['{},\'{}\',{}'.format(str(from_state), char, str(self.__delta[from_state][char]))
+                                for from_state in self.__delta for char in self.__delta[from_state]])
 
-        return alphabet + '\n' + states_count + '\n' + initial_state + '\n' + final_states + transitions
+        return alphabet + '\n' + states_count + '\n' + initial_state + '\n' + final_states + '\n' + transitions

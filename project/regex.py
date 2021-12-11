@@ -1,130 +1,122 @@
 from abc import ABC, abstractmethod
-from typing import Union
 
-from project.nfa import NFA
+from .nfa import NFA
 
 
 class Regex(ABC):
     @staticmethod
-    def from_input(text: str):
-        def get_param() -> Union[Regex, str]:
+    def parse(text: str):
+        def get_param() -> Regex:
             token = tokens[len(tokens) - 1]
             if token in {'UNION', 'STAR', 'CONCAT', 'PLUS'}:
-                return parse()
+                return helper()
 
-            return tokens.pop()
+            return RegexChar(tokens.pop())
 
-        def parse() -> Regex:
+        def helper() -> Regex:
             regex_type = tokens.pop()
             if regex_type == 'UNION':
                 a = get_param()
                 b = get_param()
-                print('UNION', a, b)
                 return RegexUnion(a, b)
 
-            elif regex_type == 'STAR':
+            if regex_type == 'STAR':
                 a = get_param()
-                print('STAR', a)
                 return RegexStar(a)
 
-            elif regex_type == 'CONCAT':
+            if regex_type == 'CONCAT':
                 a = get_param()
                 b = get_param()
-                print('CONCAT', a, b)
                 return RegexConcat(a, b)
 
-            elif regex_type == 'PLUS':
+            if regex_type == 'PLUS':
                 a = get_param()
-                print('PLUS', a)
                 return RegexPlus(a)
 
-            else:
-                # TODO: raise exception
-                pass
+            return RegexChar(regex_type)
 
         tokens = list(reversed(text.split(' ')))
 
-        return parse()
+        return helper()
 
     @abstractmethod
     def to_nfa(self) -> NFA:
         pass
 
-    @staticmethod
-    def simple_nfa(char: str):
-        return NFA({char}, 0, 1, 2, {0: {char: {1}}})
-
-    @staticmethod
-    def get_nfa(regex):
-        if isinstance(regex, str):
-            return NFA({regex}, 0, 1, 2, {0: {regex: {1}}})
-
-        if isinstance(regex, Regex):
-            return regex.to_nfa()
-
-        raise NotImplemented("can get NFA only from regex or a char")
-
 
 class RegexUnion(Regex):
-    def __init__(self, a: Union[Regex, str], b: Union[Regex, str]):
+    def __init__(self, a: Regex, b: Regex):
         self.__a = a
         self.__b = b
 
     def to_nfa(self) -> NFA:
-        nfa_a = Regex.get_nfa(self.__a)
-        nfa_b = Regex.get_nfa(self.__b)
+        nfa_a = self.__a.to_nfa()
+        nfa_b = self.__b.to_nfa()
 
         return nfa_a.union(nfa_b)
 
     def __str__(self):
-        return 'UNION ' + self.__a.__str__() + ' ' + self.__b.__str__()
+        return 'UNION ' + str(self.__a) + ' ' + str(self.__b)
 
     __repr__ = __str__
 
 
 class RegexConcat(Regex):
-    def __init__(self, a: Union[Regex, str], b: Union[Regex, str]):
+    def __init__(self, a: Regex, b: Regex):
         self.__a = a
         self.__b = b
 
     def to_nfa(self) -> NFA:
-        nfa_a = Regex.get_nfa(self.__a)
-        nfa_b = Regex.get_nfa(self.__b)
+        nfa_a = self.__a.to_nfa()
+        nfa_b = self.__b.to_nfa()
 
         return nfa_a.concat(nfa_b)
 
     def __str__(self):
-        return 'CONCAT ' + self.__a.__str__() + ' ' + self.__b.__str__()
+        return 'CONCAT ' + str(self.__a) + ' ' + str(self.__b)
 
     __repr__ = __str__
 
 
 class RegexStar(Regex):
-    def __init__(self, a: Union[Regex, str]):
+    def __init__(self, a: Regex):
         self.__a = a
 
     def to_nfa(self) -> NFA:
-        nfa = Regex.get_nfa(self.__a)
+        nfa = self.__a.to_nfa()
 
         return nfa.star()
 
     def __str__(self):
-        return 'STAR ' + self.__a.__str__()
+        return 'STAR ' + str(self.__a)
 
     __repr__ = __str__
 
 
 class RegexPlus(Regex):
-    def __init__(self, a: Union[Regex, str]):
+    def __init__(self, a: Regex):
         self.__a = a
 
     def to_nfa(self) -> NFA:
-        nfa = Regex.get_nfa(self.__a)
+        nfa = self.__a.to_nfa()
 
         return nfa.concat(nfa.star())
 
     def __str__(self):
-        return 'PLUS ' + self.__a.__str__()
+        return 'PLUS ' + str(self.__a)
+
+    __repr__ = __str__
+
+
+class RegexChar(Regex):
+    def __init__(self, char: str):
+        self.__char = char
+
+    def to_nfa(self) -> NFA:
+        return NFA({self.__char}, 0, 1, 2, {0: {self.__char: {1}}})
+
+    def __str__(self):
+        return self.__char
 
     __repr__ = __str__
 

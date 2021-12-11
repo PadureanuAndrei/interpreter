@@ -1,7 +1,7 @@
 # An adapter script for running tests
 
 import os
-from project import DFA, State, Lexer
+from project import DFA, Lexer
 
 
 # Adapter function
@@ -22,8 +22,8 @@ def runlexer(lexer_file: str, input_file: str, output_file: str):
 
 
 def read_lexer(file_name: str) -> Lexer:
-    def to_state(state: str) -> State:
-        return State(int(state))
+    def to_state(state: str) -> int:
+        return int(state)
 
     def parse_dfa(text: str) -> (str, DFA):
         lines = text.split('\n')

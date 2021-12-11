@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Set, Dict, List, Union
+from typing import Set, Dict, Tuple, List
 
 from .dfa import DFA
 
@@ -8,7 +8,7 @@ EPSILON = 'EPSILON'
 
 class NFA:
     def __init__(self, alphabet: Set[str], initial_state: int, final_state: int, states_count: int,
-                 delta: Dict[int, Dict[str, Set[int]]]):
+                 delta: Dict[int, Dict[str, List[int]]]):
         self.__alphabet = alphabet
         self.__initial_state = initial_state
         self.__final_state = final_state
@@ -17,7 +17,7 @@ class NFA:
 
     def union(self, other):
         if not isinstance(other, NFA):
-            raise NotImplemented("can concat only with another NFA")
+            raise NotImplemented("can union only with another NFA")
 
         nfa_a: NFA = self.__shift_states(1)
         nfa_b: NFA = other.__shift_states(self.__states_count + 1)
@@ -29,13 +29,13 @@ class NFA:
 
         nfa_a.__delta.update({
             initial_state: {
-                EPSILON: {nfa_a.__initial_state, nfa_b.__initial_state},
+                EPSILON: [nfa_a.__initial_state, nfa_b.__initial_state],
             },
             nfa_a.__final_state: {
-                EPSILON: {final_state},
+                EPSILON: [final_state],
             },
             nfa_b.__final_state: {
-                EPSILON: {final_state},
+                EPSILON: [final_state],
             },
         })
 
@@ -51,12 +51,14 @@ class NFA:
         final_state = nfa.__final_state + 1
         initial_state = 0
 
-        nfa.__delta[initial_state] = {
-            EPSILON: {nfa.__initial_state, final_state},
-        }
-        nfa.__delta[nfa.__final_state] = {
-            EPSILON: {final_state, nfa.__initial_state}
-        }
+        nfa.__delta.update({
+            initial_state: {
+                EPSILON: [nfa.__initial_state, final_state],
+            },
+            nfa.__final_state: {
+                EPSILON: [final_state, nfa.__initial_state],
+            },
+        })
         nfa.__initial_state = initial_state
         nfa.__final_state = final_state
         nfa.__states_count += 2
@@ -65,7 +67,7 @@ class NFA:
 
     def concat(self, other):
         if not isinstance(other, NFA):
-            raise NotImplemented("can union only with another NFA")
+            raise NotImplemented("can concat only with another NFA")
 
         nfa_a: NFA = self.__shift_states(0)
         nfa_b: NFA = other.__shift_states(self.__states_count + 0)
@@ -73,7 +75,7 @@ class NFA:
         nfa_a.__delta.update(nfa_b.__delta)
         nfa_a.__delta.update({
             nfa_a.__final_state: {
-                EPSILON: {nfa_b.__initial_state}
+                EPSILON: [nfa_b.__initial_state]
             }
         })
 
@@ -84,84 +86,108 @@ class NFA:
         return nfa_a
 
     def __shift_states(self, count: int):
-        delta = {}
-
-        for from_state in self.__delta:
-            delta[from_state + count] = {}
-            for char in self.__delta[from_state]:
-                delta[from_state + count][char] = set(map(lambda state: state + count, self.__delta[from_state][char]))
+        delta = {
+            state + count: {
+                char: [x + count for x in self.__delta[state][char]]
+                for char in self.__delta[state]
+            }
+            for state in self.__delta
+        }
 
         return NFA(self.__alphabet, self.__initial_state + count,
                    self.__final_state + count, self.__states_count, delta)
 
     def to_dfa(self) -> DFA:
         def compute_epsilon_closure() -> Dict[int, Set[int]]:
-            def get_epsilon_closure(_state: int):
-                _states = set()
-                _queue = deque([_state])
-                while _queue:
-                    _from_state = _queue.popleft()
-                    _states.add(_from_state)
+            def get_epsilon_closure(state: int):
+                states = set()
+                queue = deque([state])
+                while queue:
+                    from_state = queue.popleft()
+                    states.add(from_state)
 
-                    if _from_state in self.__delta and EPSILON in self.__delta[_from_state]:
-                        for _to_state in self.__delta[_from_state][EPSILON]:
-                            if _to_state not in _states:
-                                _queue.append(_to_state)
+                    if from_state not in self.__delta or EPSILON not in self.__delta[from_state]:
+                        continue
 
-                return _states
+                    queue.extend([
+                        to_state
+                        for to_state in self.__delta[from_state][EPSILON] if to_state not in states
+                    ])
 
-            result = {}
-            for i in range(self.__states_count):
-                result[i] = get_epsilon_closure(i)
+                return states
 
-            return result
+            return {i: get_epsilon_closure(i) for i in range(self.__states_count)}
+
+        def set_to_state(state_set: Set[int]) -> str:
+            return ','.join([str(x) for x in state_set])
+
+        def normalize(initial_state: str, final_states: Set[str], delta: Dict[str, Dict[str, str]]) ->\
+                Tuple[int, Set[int], Dict[int, Dict[str, int]]]:
+            states = {initial_state}
+            states.update(final_states)
+            states.update({state for state in delta})
+            states.update({delta[state][char] for state in delta for char in delta[state]})
+
+            translate = {old_name: new_name for new_name, old_name in enumerate(states)}
+
+            new_delta = {
+                translate[state]: {
+                    char: translate[delta[state][char]] for char in delta[state]
+                } for state in delta
+            }
+
+            new_initial_state = translate[initial_state]
+            new_final_states = {translate[x] for x in final_states}
+
+            return new_initial_state, new_final_states, new_delta
 
         epsilon_closure = compute_epsilon_closure()
-
-        delta: Dict[DFA.State, Dict[str, DFA.State]] = {}
+        delta = {}
         final_states = set()
-
         sink_state = self.__states_count
 
-        queue = deque()
-        queue.append(epsilon_closure[self.__initial_state])
-        visited = {DFA.State(epsilon_closure[self.__initial_state])}
+        queue = deque([epsilon_closure[self.__initial_state]])
+        visited = {set_to_state(epsilon_closure[self.__initial_state])}
         while queue:
             from_state_set = queue.popleft()
-            from_state = DFA.State(from_state_set)
+            from_state = set_to_state(from_state_set)
+            delta[from_state] = {}
 
             if self.__final_state in from_state_set:
                 final_states.add(from_state)
 
             for char in self.__alphabet:
-                to_state_set = set()
-                for nfa_state in from_state_set:
-                    if nfa_state in self.__delta and char in self.__delta[nfa_state]:
-                        for another_state in self.__delta[nfa_state][char]:
-                            to_state_set.update(epsilon_closure[another_state])
+                to_state_set = {
+                    item
 
-                if not to_state_set:
-                    to_state_set = {sink_state}
+                    for nfa_state in from_state_set if nfa_state in self.__delta and char in self.__delta[nfa_state]
+                    for another_state in self.__delta[nfa_state][char]
+                    for item in epsilon_closure[another_state]
+                } or {sink_state}
 
-                to_state = DFA.State(to_state_set)
+                to_state = set_to_state(to_state_set)
 
-                if from_state not in delta:
-                    delta[from_state] = {}
                 delta[from_state][char] = to_state
 
                 if to_state not in visited:
                     visited.add(to_state)
                     queue.append(to_state_set)
 
-        initial_state = DFA.State(epsilon_closure[self.__initial_state])
+        initial_state = set_to_state(epsilon_closure[self.__initial_state])
+
+        initial_state, final_states, delta = normalize(initial_state, final_states, delta)
 
         return DFA(self.__alphabet, initial_state, final_states, delta)
 
     def __str__(self):
         result = 'from,char,to\n'
-        for from_state in self.__delta:
-            for char in self.__delta[from_state]:
-                for to_state in self.__delta[from_state][char]:
-                    result += '{} {} {}\n'.format(from_state, to_state, char)
+
+        result += ''.join([
+            '{} {} {}\n'.format(from_state, to_state, char)
+
+            for from_state in self.__delta
+            for char in self.__delta[from_state]
+            for to_state in self.__delta[from_state][char]
+        ])
 
         return result

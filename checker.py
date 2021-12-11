@@ -100,15 +100,9 @@ def parse_dfa(text):
         initial_state = int(lines[2])
         final_states = set(int(s) for s in lines[3].split())
         delta = build_delta(lines[4:])
-        print(alphabet)
-        print(states)
-        print(initial_state)
-        print(final_states)
-        print(delta)
         states, final_states, delta = normalize(states, final_states, delta)
-        # return DFA(alphabet, states, initial_state, final_states, delta)
+        return DFA(alphabet, states, initial_state, final_states, delta)
     except Exception as e:
-        print(e.with_traceback())
         return None
 
 def epsilon_closure(nfa, state):
@@ -224,7 +218,6 @@ def run_test_dfa(test, outfile, reffile, cp):
     try:
         with open(outfile, "r") as fin:
             out_text_dfa = fin.read()
-            print(outfile)
     except FileNotFoundError:
         print("No out file for test {}".format(test), file=sys.stderr)
         print("Output of current run:", file=sys.stderr)
@@ -233,11 +226,12 @@ def run_test_dfa(test, outfile, reffile, cp):
 
     try:
         out_dfa = parse_dfa(out_text_dfa)
-        # ref_dfa = parse_dfa(ref_text_dfa)
-        print(outfile)
+        ref_dfa = parse_dfa(ref_text_dfa)
+
         if out_dfa is None:
             return False
-        # return language_eq(out_dfa, ref_dfa)
+
+        return language_eq(out_dfa, ref_dfa)
     except AssertionError as e:
         print("Assertion error:", file=sys.stderr)
         print(e, file=sys.stderr)
@@ -262,7 +256,7 @@ def run_test(test):
     if lang == "haskell":
         cmd = "./{} {} {}".format(EXEC, infile, outfile)
     else:
-        cmd = "python {} {} {}".format(SRCFILE, infile, outfile)
+        cmd = "python3 '{}' '{}' '{}'".format(SRCFILE, infile, outfile)
     # timeout_cmd = "timeout -k {0} {0} {1} 2>&1".format(TEST_TIMEOUT, cmd)
     cp = subprocess.run(cmd, shell=True, stdout=PIPE, stderr=PIPE)
     # if cp.returncode == 124:
@@ -293,7 +287,6 @@ if __name__ == "__main__":
 
     tests = os.listdir(os.path.join(TESTDIR, "in"))
     tests.sort(key = lambda s : int(s.split('.')[1]))
-    tests = [tests[1]]
     nr_tests = len(tests)
     total = 0
     max_points = nr_tests * POINTS_PER_TEST_DFA

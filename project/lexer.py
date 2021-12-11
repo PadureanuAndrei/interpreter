@@ -1,5 +1,6 @@
 from functools import reduce
 from typing import List, Tuple, Union
+
 from .dfa import DFA
 
 
