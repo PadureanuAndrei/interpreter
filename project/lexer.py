@@ -22,13 +22,13 @@ class Lexer:
         # Reducer for iterating trough a list of (token, DFA) and get dfa which accepts max len word
         def reducer(acc: Tuple[Union[str, None], int, int], x: Tuple[str, DFA]):
             max_token, max_accepted, max_read = acc
-            _token, dfa = x
-            _accepted, _last = dfa.max_accepted(text[position:])
+            token, dfa = x
+            accepted, last = dfa.max_accepted(text[position:])
 
-            if _accepted > max_accepted:
-                return _token, _accepted, _last
-            if _last > max_read:
-                return max_token, max_accepted, _last
+            if accepted > max_accepted:
+                return token, accepted, last
+            if last > max_read:
+                return max_token, max_accepted, last
 
             return acc
 

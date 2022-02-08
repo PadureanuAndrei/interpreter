@@ -1,10 +1,7 @@
-# An adapter script for running tests
-
 import os
-from project import DFA, Lexer
+from project import DFA, Lexer, encode, decode
 
 
-# Adapter function
 def runlexer(lexer_file: str, input_file: str, output_file: str):
     lexer = read_lexer(lexer_file)
     input_word = read_word(input_file)
@@ -57,11 +54,3 @@ def read_word(file_name: str) -> str:
         return file.read()
 
 
-# Encodes string: '\n' (one character) -> '\\n' (two characters)
-def encode(text: str) -> str:
-    return text.encode('unicode_escape').decode('latin1')
-
-
-# Decodes string: '\\n' (two characters) -> '\n' (one character)
-def decode(text: str) -> str:
-    return text.encode('latin1').decode('unicode-escape')

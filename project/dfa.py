@@ -90,7 +90,10 @@ class DFA:
         initial_state = str(self.__initial_state)
         final_states = ' '.join([str(x) for x in self.__final_states])
 
-        transitions = '\n'.join(['{},\'{}\',{}'.format(str(from_state), char, str(self.__delta[from_state][char]))
-                                for from_state in self.__delta for char in self.__delta[from_state]])
+        transitions = '\n'.join([
+            '{},\'{}\',{}'.format(str(from_state), char, str(self.__delta[from_state][char]))
+
+            for from_state in self.__delta for char in self.__delta[from_state]
+        ])
 
         return alphabet + '\n' + states_count + '\n' + initial_state + '\n' + final_states + '\n' + transitions

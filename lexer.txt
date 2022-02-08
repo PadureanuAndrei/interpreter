@@ -1,0 +1,14 @@
+BEGIN begin;
+END end;
+WHILE while;
+DO do;
+OD od;
+IF if;
+THEN then;
+ELSE else;
+FI fi;
+WHITESPACES (' ' | '\t' | '\n' | ')' | '(')+;
+EQUAL '=';
+OPERATOR '+' | '-' | '*' | '<' | ('=''=') | '>';
+VARIABLE [a-z]+;
+INTEGER [0-9]+ | '-'[0-9]+;

@@ -1,11 +1,89 @@
 from abc import ABC, abstractmethod
+from string import ascii_lowercase
+from typing import Union
 
 from .nfa import NFA
+from .utils import decode
 
 
 class Regex(ABC):
     @staticmethod
     def parse(text: str):
+        index = 0
+
+        def parse_regex() -> Regex:
+            nonlocal index
+            regex: Union[None, Regex] = None
+            last_regex: Union[None, Regex] = None
+
+            while index < len(text):
+                if text[index] == '\'':
+                    if last_regex:
+                        regex = RegexConcat(regex, last_regex) if regex else last_regex
+
+                    last_index = text.find('\'', index + 1)
+                    while text[last_index - 1] == '\\':
+                        last_index = text.find('\'', last_index + 1)
+
+                    last_regex = RegexChar(decode(text[index + 1:last_index]))
+                    index = last_index
+
+                elif text[index] == '[':
+                    if last_regex:
+                        regex = RegexConcat(regex, last_regex) if regex else last_regex
+
+                    last_regex = REGEX_NUMBER if text[index + 1] == '0' else REGEX_WORD
+                    index += 5
+
+                elif text[index] == '(':
+                    if last_regex:
+                        regex = RegexConcat(regex, last_regex) if regex else last_regex
+
+                    index += 1
+                    last_regex = parse_regex()
+                    index += 1
+
+                    continue
+
+                elif text[index] == '+':
+                    last_regex = RegexPlus(last_regex)
+                elif text[index] == '*':
+                    last_regex = RegexStar(last_regex)
+
+                elif text[index] == '|':
+                    index += 1
+                    regex1 = parse_regex()
+
+                    last_regex = RegexUnion(last_regex, regex1) if last_regex else regex1
+
+                elif text[index].isalnum():
+                    if last_regex:
+                        regex = RegexConcat(regex, last_regex) if regex else last_regex
+
+                    last_regex = RegexChar(text[index])
+
+                if index < len(text) and text[index] == ')':
+                    if last_regex:
+                        regex = RegexConcat(regex, last_regex) if regex else last_regex
+
+                    if not regex:
+                        raise Exception("Invalid regex")
+                    return regex
+
+                index += 1
+
+            if last_regex:
+                regex = RegexConcat(regex, last_regex) if regex else last_regex
+
+            if not regex:
+                raise Exception("Invalid regex")
+
+            return regex
+
+        return parse_regex()
+
+    @staticmethod
+    def parse_prenex_form(text: str):
         def get_param() -> Regex:
             token = tokens[len(tokens) - 1]
             if token in {'UNION', 'STAR', 'CONCAT', 'PLUS'}:
@@ -121,6 +199,12 @@ class RegexChar(Regex):
     __repr__ = __str__
 
 
-if __name__ == '__main__':
-    s = "STAR UNION a b"
-    print(Regex.from_input(s).to_nfa().to_dfa())
+REGEX_WORD = RegexChar('a')
+for x in ascii_lowercase[1:]:
+    REGEX_WORD = RegexUnion(REGEX_WORD, RegexChar(x))
+REGEX_WORD = RegexPlus(REGEX_WORD)
+
+REGEX_NUMBER = RegexChar('0')
+for x in range(1, 10):
+    REGEX_NUMBER = RegexUnion(REGEX_NUMBER, RegexChar(chr(ord('0') + x)))
+REGEX_NUMBER = RegexPlus(REGEX_NUMBER)
